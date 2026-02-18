@@ -1,6 +1,6 @@
 import React from "react";
 import "./App.css";
-import Wish from "./pages/wish";
+import Wish from "./pages/Wish";
 
 const App = () => {
   return (
