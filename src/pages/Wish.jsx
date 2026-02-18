@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 
 const Wish = () => {
   const [isOpened, setIsOpened] = useState(false);
-  const [showPhoto, setShowPhoto] = useState(false);
   const [elements, setElements] = useState([]);
+  const navigate = useNavigate();
 
-  // Use useCallback to prevent unnecessary function recreation
   const addElement = useCallback((isSurge = false) => {
-    const id = Math.random(); // Fast ID generation
+    const id = Math.random();
     const newElement = {
       id,
       left: isSurge ? 10 + Math.random() * 80 : Math.random() * 100,
@@ -20,10 +20,7 @@ const Wish = () => {
       ],
       isSurge,
     };
-
     setElements((prev) => [...prev, newElement]);
-
-    // Clean up elements faster to keep the DOM light
     setTimeout(() => {
       setElements((prev) => prev.filter((el) => el.id !== id));
     }, 6000);
@@ -31,7 +28,6 @@ const Wish = () => {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      // Only spawn background elements if the tab is active
       if (!document.hidden) addElement(false);
     }, 800);
     return () => clearInterval(interval);
@@ -40,18 +36,9 @@ const Wish = () => {
   const handleSurprise = () => {
     if (isOpened) return;
     setIsOpened(true);
-
-    // Batch the surge slightly differently to avoid frame drops
-    for (let i = 0; i < 45; i++) {
+    for (let i = 0; i < 40; i++) {
       setTimeout(() => addElement(true), i * 25);
     }
-    setTimeout(() => setShowPhoto(true), 1200);
-  };
-
-  const handleBack = (e) => {
-    e.stopPropagation();
-    setIsOpened(false);
-    setShowPhoto(false);
   };
 
   return (
@@ -59,46 +46,19 @@ const Wish = () => {
       className="relative w-full h-screen h-[100dvh] overflow-hidden flex flex-col items-center justify-center cursor-pointer select-none px-4 py-6"
       style={{
         background: "linear-gradient(135deg, #fff5f5 0%, #fff0f3 100%)",
-        // This helps performance by creating a separate stacking context
         isolation: "isolate",
       }}
       onClick={handleSurprise}
     >
-      <AnimatePresence>
-        {isOpened && (
-          <motion.button
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={handleBack}
-            className="absolute top-6 left-6 z-50 flex items-center gap-2 font-dancing text-lg font-bold text-[#ff4d6d] bg-white/90 py-2 px-6 rounded-full shadow-md"
-          >
-            <span>✨</span> Back
-          </motion.button>
-        )}
-      </AnimatePresence>
-
-      {/* Optimized Floating Elements */}
+      {/* Background Floating Elements */}
       {elements.map((el) => (
         <motion.div
           key={el.id}
           className="absolute pointer-events-none z-0"
-          style={{
-            left: `${el.left}%`,
-            fontSize: el.size,
-            willChange: "transform", // Forces GPU acceleration
-          }}
+          style={{ left: `${el.left}%`, fontSize: el.size }}
           initial={{ y: "110vh", opacity: 0 }}
-          animate={{
-            y: "-20vh",
-            x: el.drift,
-            opacity: [0, 1, 1, 0],
-            rotate: el.isSurge ? 360 : 0,
-          }}
-          transition={{
-            duration: el.duration,
-            ease: "linear", // Linear is cheaper to calculate than easeOut
-          }}
+          animate={{ y: "-20vh", x: el.drift, opacity: [0, 1, 1, 0] }}
+          transition={{ duration: el.duration, ease: "linear" }}
         >
           {el.emoji}
         </motion.div>
@@ -106,8 +66,7 @@ const Wish = () => {
 
       <motion.div
         layout
-        className={`z-10 text-center p-8 bg-white/70 ${!isOpened ? "backdrop-blur-md" : ""} rounded-[50px] border border-white/80 shadow-xl max-w-sm w-full`}
-        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        className="z-10 text-center p-6 bg-white/70 backdrop-blur-md rounded-[40px] border border-white/80 shadow-xl max-w-sm w-full"
       >
         <AnimatePresence mode="wait">
           {!isOpened ? (
@@ -142,27 +101,50 @@ const Wish = () => {
               animate={{ opacity: 1, scale: 1 }}
               className="flex flex-col items-center"
             >
-              <h1 className="font-dancing text-5xl text-[#ff8fa3] font-bold mb-4">
+              <h1 className="font-dancing text-4xl text-[#ff8fa3] font-bold mb-2">
                 Surprise!
               </h1>
-              <div className="font-dancing text-xl text-[#5d4037] space-y-2">
+
+              <div className="font-dancing text-lg text-[#5d4037] space-y-1 mb-4 text-balance">
                 <p>Thinking of you is the best way to start my morning.</p>
                 <p className="text-[#ff4d6d]">
                   I hope your day is as wonderful as you make me feel.
                 </p>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
 
-        <AnimatePresence>
-          {showPhoto && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mt-6 p-2 bg-white shadow-xl inline-block rotate-3 border-b-[20px] border-white"
-            >
-              <img src="her.jpeg" alt="Us" className="w-40 h-40 object-cover" />
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="mb-6 p-2 bg-white shadow-lg rotate-3 border-b-[15px] border-white"
+              >
+                <img
+                  src="her.jpeg"
+                  alt="Us"
+                  className="w-32 h-32 object-cover"
+                />
+              </motion.div>
+
+              {/* UPDATED BUTTON */}
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                animate={{
+                  boxShadow: [
+                    "0px 0px 0px rgba(255,143,163,0)",
+                    "0px 0px 15px rgba(255,143,163,0.5)",
+                    "0px 0px 0px rgba(255,143,163,0)",
+                  ],
+                }}
+                transition={{ repeat: Infinity, duration: 2 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate("/gift");
+                }}
+                className="bg-[#ff8fa3] text-white px-8 py-3 rounded-full font-dancing text-xl shadow-md"
+              >
+                One more thing... ❤️
+              </motion.button>
             </motion.div>
           )}
         </AnimatePresence>
