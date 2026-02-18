@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const Wish = () => {
@@ -6,38 +6,46 @@ const Wish = () => {
   const [showPhoto, setShowPhoto] = useState(false);
   const [elements, setElements] = useState([]);
 
-  const addElement = (isSurge = false) => {
-    const id = Date.now() + Math.random();
+  // Use useCallback to prevent unnecessary function recreation
+  const addElement = useCallback((isSurge = false) => {
+    const id = Math.random(); // Fast ID generation
     const newElement = {
       id,
       left: isSurge ? 10 + Math.random() * 80 : Math.random() * 100,
-      size: isSurge ? Math.random() * 35 + 20 : Math.random() * 20 + 15,
-      duration: isSurge ? Math.random() * 2 + 1.5 : Math.random() * 5 + 5,
-      drift: (Math.random() - 0.5) * 200,
-      emoji: ["❤️", "💖", "✨", "🌸", "🌷", "☀️", "💝", "✨"][
-        Math.floor(Math.random() * 8)
+      size: isSurge ? Math.random() * 30 + 20 : Math.random() * 15 + 15,
+      duration: isSurge ? Math.random() * 1.5 + 1 : Math.random() * 4 + 4,
+      drift: (Math.random() - 0.5) * 150,
+      emoji: ["❤️", "💖", "✨", "🌸", "🌷", "☀️", "💝"][
+        Math.floor(Math.random() * 7)
       ],
       isSurge,
     };
 
     setElements((prev) => [...prev, newElement]);
+
+    // Clean up elements faster to keep the DOM light
     setTimeout(() => {
       setElements((prev) => prev.filter((el) => el.id !== id));
-    }, 8000);
-  };
+    }, 6000);
+  }, []);
 
   useEffect(() => {
-    const interval = setInterval(() => addElement(false), 500);
+    const interval = setInterval(() => {
+      // Only spawn background elements if the tab is active
+      if (!document.hidden) addElement(false);
+    }, 800);
     return () => clearInterval(interval);
-  }, []);
+  }, [addElement]);
 
   const handleSurprise = () => {
     if (isOpened) return;
     setIsOpened(true);
-    for (let i = 0; i < 70; i++) {
-      setTimeout(() => addElement(true), i * 20);
+
+    // Batch the surge slightly differently to avoid frame drops
+    for (let i = 0; i < 45; i++) {
+      setTimeout(() => addElement(true), i * 25);
     }
-    setTimeout(() => setShowPhoto(true), 1500);
+    setTimeout(() => setShowPhoto(true), 1200);
   };
 
   const handleBack = (e) => {
@@ -51,48 +59,55 @@ const Wish = () => {
       className="relative w-full h-screen h-[100dvh] overflow-hidden flex flex-col items-center justify-center cursor-pointer select-none px-4 py-6"
       style={{
         background: "linear-gradient(135deg, #fff5f5 0%, #fff0f3 100%)",
+        // This helps performance by creating a separate stacking context
+        isolation: "isolate",
       }}
       onClick={handleSurprise}
     >
-      {/* RADIANT BACK BUTTON */}
       <AnimatePresence>
         {isOpened && (
           <motion.button
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             onClick={handleBack}
-            className="absolute top-4 left-4 sm:top-8 sm:left-8 z-50 flex items-center gap-2 font-dancing text-lg sm:text-xl font-bold text-[#ff4d6d] bg-white/80 backdrop-blur-md py-1.5 px-5 rounded-full border-2 border-[#ffb3c1]/50 shadow-lg"
+            className="absolute top-6 left-6 z-50 flex items-center gap-2 font-dancing text-lg font-bold text-[#ff4d6d] bg-white/90 py-2 px-6 rounded-full shadow-md"
           >
             <span>✨</span> Back
           </motion.button>
         )}
       </AnimatePresence>
 
-      {/* Floating Elements */}
+      {/* Optimized Floating Elements */}
       {elements.map((el) => (
         <motion.div
           key={el.id}
           className="absolute pointer-events-none z-0"
-          style={{ left: `${el.left}%`, fontSize: el.size }}
+          style={{
+            left: `${el.left}%`,
+            fontSize: el.size,
+            willChange: "transform", // Forces GPU acceleration
+          }}
           initial={{ y: "110vh", opacity: 0 }}
           animate={{
             y: "-20vh",
-            x: [0, el.drift, el.drift * -1],
-            opacity: [0, 1, 0],
-            rotate: [0, 360],
-            scale: el.isSurge ? [1, 1.5, 1] : 1,
+            x: el.drift,
+            opacity: [0, 1, 1, 0],
+            rotate: el.isSurge ? 360 : 0,
           }}
-          transition={{ duration: el.duration, ease: "easeOut" }}
+          transition={{
+            duration: el.duration,
+            ease: "linear", // Linear is cheaper to calculate than easeOut
+          }}
         >
           {el.emoji}
         </motion.div>
       ))}
 
-      {/* Main Card: Uses max-h to prevent overflow on small phones */}
       <motion.div
         layout
-        className="z-10 text-center p-6 sm:p-10 bg-white/60 backdrop-blur-2xl rounded-[40px] sm:rounded-[60px] border-2 border-white/80 shadow-2xl max-w-sm sm:max-w-md w-full flex flex-col justify-center items-center overflow-hidden"
+        className={`z-10 text-center p-8 bg-white/70 ${!isOpened ? "backdrop-blur-md" : ""} rounded-[50px] border border-white/80 shadow-xl max-w-sm w-full`}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
       >
         <AnimatePresence mode="wait">
           {!isOpened ? (
@@ -105,50 +120,37 @@ const Wish = () => {
             >
               <motion.div
                 animate={{ y: [0, -10, 0] }}
-                transition={{ repeat: Infinity, duration: 3 }}
-                className="text-5xl sm:text-6xl"
+                transition={{ repeat: Infinity, duration: 2 }}
+                className="text-6xl"
               >
                 ☀️
               </motion.div>
-              <h1 className="font-dancing text-4xl sm:text-6xl text-[#ff8fa3] font-bold">
+              <h1 className="font-dancing text-5xl text-[#ff8fa3] font-bold">
                 Good morning,
               </h1>
-              <p className="font-dancing text-2xl sm:text-3xl text-[#5d4037] font-semibold">
+              <p className="font-dancing text-2xl text-[#5d4037]">
                 cutie patootie!
               </p>
-              <p className="font-poppins text-[9px] text-[#ffb3c1] font-bold uppercase tracking-[0.3em] animate-pulse pt-4">
+              <p className="text-[10px] text-[#ffb3c1] font-bold uppercase tracking-widest pt-4">
                 Tap for a surprise
               </p>
             </motion.div>
           ) : (
             <motion.div
               key="m2"
-              initial={{ opacity: 0, scale: 0.95 }}
+              initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               className="flex flex-col items-center"
             >
-              <h1 className="font-dancing text-4xl sm:text-6xl text-[#ff8fa3] font-bold mb-3 sm:mb-6">
+              <h1 className="font-dancing text-5xl text-[#ff8fa3] font-bold mb-4">
                 Surprise!
               </h1>
-              <div className="font-dancing text-xl sm:text-2xl text-[#5d4037] font-semibold leading-tight space-y-2">
-                <p>
-                  Thinking of you is the best way{" "}
-                  <br className="hidden sm:block" /> to start my morning.
-                </p>
-                <p className="text-[#ff4d6d] drop-shadow-sm">
-                  I hope your day is as wonderful{" "}
-                  <br className="hidden sm:block" /> as you make me feel.
+              <div className="font-dancing text-xl text-[#5d4037] space-y-2">
+                <p>Thinking of you is the best way to start my morning.</p>
+                <p className="text-[#ff4d6d]">
+                  I hope your day is as wonderful as you make me feel.
                 </p>
               </div>
-
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 }}
-                className="text-sm sm:text-lg text-[#ff8fa3] mt-4 sm:mt-6 font-poppins tracking-wider font-bold uppercase"
-              >
-                Counting down the hours <br /> until I see you! ✨
-              </motion.p>
             </motion.div>
           )}
         </AnimatePresence>
@@ -156,15 +158,11 @@ const Wish = () => {
         <AnimatePresence>
           {showPhoto && (
             <motion.div
-              initial={{ opacity: 0, scale: 0.8, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              className="mt-4 sm:mt-6 p-2 bg-white shadow-lg rounded-sm border-b-[20px] sm:border-b-[25px] border-b-white rotate-2"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-6 p-2 bg-white shadow-xl inline-block rotate-3 border-b-[20px] border-white"
             >
-              <img
-                src="her.jpeg"
-                alt="Us"
-                className="w-32 h-32 sm:w-48 sm:h-48 object-cover rounded-sm"
-              />
+              <img src="her.jpeg" alt="Us" className="w-40 h-40 object-cover" />
             </motion.div>
           )}
         </AnimatePresence>
