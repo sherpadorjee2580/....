@@ -1,0 +1,18 @@
+@import url("https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400..700&family=Poppins:wght@100..900&display=swap");
+
+@import "tailwindcss";
+
+/* 1. Imports first */
+
+/* 2. Custom Layer (This ensures Tailwind knows these exist) */
+@theme {
+  --font-dancing: "Dancing Script", cursive;
+  --font-poppins: "Poppins", sans-serif;
+}
+
+/* 3. Global Styles */
+body {
+  overscroll-behavior-y: none;
+  overflow: hidden;
+  font-family: var(--font-poppins); /* Sets Poppins as default */
+}
